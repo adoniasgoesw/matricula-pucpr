@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import pucLogo from '../assets/puc.webp';
+import pucLogo from '../assets/puc.png';
 
 export default function Inicio() {
   const navigate = useNavigate();
