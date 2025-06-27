@@ -1,0 +1,113 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Matricula {
+  id          String   @id @default(uuid())
+  nome        String
+  cpf         String   @unique
+  rg          String
+  nascimento  DateTime
+  email       String
+  telefone    String
+  endereco    String
+  cidade      String
+  estado      String
+  cursoId     Int
+  campusId    String
+  status      String   @default("PENDENTE") // PENDENTE, APROVADA, REJEITADA, CANCELADA
+  valor       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  documentos  Documento[]
+  pagamentos  Pagamento[]
+  contrato    Contrato?
+
+  @@map("matriculas")
+}
+
+model Documento {
+  id          String   @id @default(uuid())
+  matriculaId String
+  tipo        String   // RG, CPF, RESIDENCIA, HISTORICO, CERTIFICADO, FOTO
+  nomeArquivo String
+  url         String
+  tamanho     Int
+  mimeType    String
+  uploadedAt  DateTime @default(now())
+
+  // Relacionamento
+  matricula   Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@map("documentos")
+}
+
+model Pagamento {
+  id          String   @id @default(uuid())
+  matriculaId String
+  metodo      String   // PIX, CARTAO, BOLETO
+  valor       Float
+  status      String   @default("PENDENTE") // PENDENTE, APROVADO, REJEITADO
+  dados       Json?    // Dados específicos do pagamento (cartão, PIX, etc.)
+  processadoAt DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relacionamento
+  matricula   Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@map("pagamentos")
+}
+
+model Contrato {
+  id          String   @id @default(uuid())
+  matriculaId String   @unique
+  numero      String   @unique
+  url         String
+  assinado    Boolean  @default(false)
+  assinadoAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relacionamento
+  matricula   Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+
+  @@map("contratos")
+}
+
+model Curso {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  tipo        String   // BACHARELADO, LICENCIATURA, TECNOLOGO
+  duracao     String
+  turno       String
+  mensalidade Float
+  descricao   String
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("cursos")
+}
+
+model Campus {
+  id        String   @id
+  nome      String
+  cidade    String
+  estado    String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("campus")
+}

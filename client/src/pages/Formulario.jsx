@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import pucLogo from '../assets/puc.png';
+import apiService from '../services/api';
 
 const Formulario = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedCampus, setSelectedCampus] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('pix');
+  const [matriculaId, setMatriculaId] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nome: '',
     cpf: '',
@@ -362,7 +365,7 @@ const Formulario = () => {
     return true;
   };
 
-  const nextStep = () => {
+  const nextStep = async () => {
     let isValid = false;
     
     switch (currentStep) {
@@ -393,7 +396,7 @@ const Formulario = () => {
           alert('Por favor, preencha todos os dados do cartão.');
           return;
         }
-        setCurrentStep(4); // Show confirmation
+        await finalizarMatricula();
         return;
     }
     
@@ -440,6 +443,98 @@ const Formulario = () => {
     const year = new Date().getFullYear();
     const randomNum = Math.floor(Math.random() * 9000) + 1000;
     return `${year}00${randomNum}`;
+  };
+
+  // Criar matrícula no backend
+  const criarMatricula = async () => {
+    setLoading(true);
+    
+    const dadosMatricula = {
+      nome: formData.nome,
+      cpf: formData.cpf,
+      rg: formData.rg,
+      nascimento: formData.nascimento,
+      email: formData.email,
+      telefone: formData.telefone,
+      endereco: formData.endereco,
+      cidade: formData.cidade,
+      estado: formData.estado,
+      cursoId: selectedCourse.id,
+      campusId: selectedCampus,
+      valor: parseFloat(selectedCourse.tuition.replace('R$ ', '').replace(',', '.'))
+    };
+
+    const response = await apiService.criarMatricula(dadosMatricula);
+    setMatriculaId(response.id);
+    setLoading(false);
+    return response;
+  };
+
+  // Upload de documentos
+  const uploadDocumentos = async () => {
+    if (!matriculaId) {
+      throw new Error('Matrícula não criada');
+    }
+
+    const uploadPromises = [];
+    
+    for (const [tipo, arquivo] of Object.entries(formData.documents)) {
+      if (arquivo) {
+        const promise = apiService.uploadDocumento(matriculaId, tipo.toUpperCase(), arquivo);
+        uploadPromises.push(promise);
+      }
+    }
+
+    try {
+      await Promise.all(uploadPromises);
+    } catch (error) {
+      throw new Error('Erro no upload de documentos: ' + error.message);
+    }
+  };
+
+  // Processar pagamento
+  const processarPagamento = async () => {
+    if (!matriculaId) {
+      throw new Error('Matrícula não criada');
+    }
+
+    try {
+      const dadosPagamento = paymentMethod === 'card' ? formData.cardData : {};
+      const response = await apiService.processarPagamento(matriculaId, paymentMethod, dadosPagamento);
+      return response;
+    } catch (error) {
+      throw new Error('Erro no processamento do pagamento: ' + error.message);
+    }
+  };
+
+  // Finalizar matrícula completa
+  const finalizarMatricula = async () => {
+    setLoading(true);
+
+    try {
+      // 1. Criar matrícula (se ainda não foi criada)
+      if (!matriculaId) {
+        await criarMatricula();
+      }
+
+      // 2. Upload de documentos
+      await uploadDocumentos();
+
+      // 3. Processar pagamento
+      await processarPagamento();
+
+      // 4. Gerar contrato
+      await apiService.gerarContrato(matriculaId);
+
+      // 5. Avançar para confirmação
+      setCurrentStep(4);
+      
+    } catch (error) {
+      console.error('Erro ao finalizar matrícula:', error);
+      alert('Erro ao finalizar matrícula: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -630,9 +725,10 @@ const Formulario = () => {
                 <div className="flex justify-end">
                   <button 
                     onClick={nextStep} 
-                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34]"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Próximo
+                    {loading ? 'Processando...' : 'Próximo'}
                   </button>
                 </div>
               </div>
@@ -708,15 +804,17 @@ const Formulario = () => {
                 <div className="flex justify-between">
                   <button 
                     onClick={prevStep} 
-                    className="px-6 py-2 border border-[#bb243e] text-[#bb243e] rounded-md transition-all duration-300 hover:bg-gray-100"
+                    disabled={loading}
+                    className="px-6 py-2 border border-[#bb243e] text-[#bb243e] rounded-md transition-all duration-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Voltar
                   </button>
                   <button 
                     onClick={nextStep} 
-                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34]"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Próximo
+                    {loading ? 'Processando...' : 'Próximo'}
                   </button>
                 </div>
               </div>
@@ -817,15 +915,17 @@ const Formulario = () => {
                 <div className="flex justify-between">
                   <button 
                     onClick={prevStep} 
-                    className="px-6 py-2 border border-[#bb243e] text-[#bb243e] rounded-md transition-all duration-300 hover:bg-gray-100"
+                    disabled={loading}
+                    className="px-6 py-2 border border-[#bb243e] text-[#bb243e] rounded-md transition-all duration-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Voltar
                   </button>
                   <button 
                     onClick={nextStep} 
-                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34]"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Próximo
+                    {loading ? 'Processando...' : 'Próximo'}
                   </button>
                 </div>
               </div>
@@ -1013,15 +1113,17 @@ const Formulario = () => {
                 <div className="flex justify-between">
                   <button 
                     onClick={prevStep} 
-                    className="px-6 py-2 border border-[#bb243e] text-[#bb243e] rounded-md transition-all duration-300 hover:bg-gray-100"
+                    disabled={loading}
+                    className="px-6 py-2 border border-[#bb243e] text-[#bb243e] rounded-md transition-all duration-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Voltar
                   </button>
                   <button 
                     onClick={nextStep} 
-                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34]"
+                    disabled={loading}
+                    className="px-6 py-2 bg-[#bb243e] text-white rounded-md transition-all duration-300 hover:bg-[#a01e34] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Finalizar Matrícula
+                    {loading ? 'Processando...' : 'Finalizar Matrícula'}
                   </button>
                 </div>
               </div>
@@ -1041,7 +1143,7 @@ const Formulario = () => {
                   <h4 className="font-semibold mb-4 text-[#bb243e]">Status da Matrícula</h4>
                   <div className="flex justify-between mb-2">
                     <span>Número da matrícula:</span>
-                    <span className="font-medium">{generateMatriculaNumber()}</span>
+                    <span className="font-medium">{matriculaId || generateMatriculaNumber()}</span>
                   </div>
                   <div className="flex justify-between mb-2">
                     <span>Status:</span>
