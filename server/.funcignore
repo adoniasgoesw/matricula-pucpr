@@ -1,0 +1,9 @@
+*.md
+*.env
+env.example
+scripts/
+uplouds/
+README.md
+APPLICATION_INSIGHTS_GUIDE.md
+AZURE_BLOB_SETUP.md
+node_modules/ 
