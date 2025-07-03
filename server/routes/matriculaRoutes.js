@@ -44,6 +44,17 @@ router.post('/documento', upload.single('arquivo'), matriculaController.uploadDo
 router.post('/pagamento', matriculaController.processarPagamento);
 router.get('/contrato/:matriculaId', matriculaController.gerarContrato);
 
+// Rotas de teste para Azure Blob Storage (para desenvolvimento)
+router.post('/test/upload', upload.single('arquivo'), matriculaController.testUploadDocumento);
+router.get('/test/documentos', matriculaController.listarDocumentos);
+
+// Rotas de teste para Azure Functions (para desenvolvimento)
+router.post('/test/azure-functions/validar-pagamento', matriculaController.testValidarPagamento);
+router.post('/test/azure-functions/validar-documento', matriculaController.testValidarDocumento);
+router.post('/test/azure-functions/gerar-contrato', matriculaController.testGerarContrato);
+router.post('/test/azure-functions/notificar-estudante', matriculaController.testNotificarEstudante);
+router.get('/test/azure-functions/conectividade', matriculaController.testConectividadeAzureFunctions);
+
 // Rotas administrativas (em produção, adicionar autenticação)
 router.get('/admin/matriculas', matriculaController.listarMatriculas);
 router.put('/admin/matricula/:id/status', matriculaController.atualizarStatus);

@@ -3,22 +3,23 @@ const { v4: uuidv4 } = require('uuid');
 
 class BlobService {
   constructor() {
-    this.connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-    this.containerName = process.env.AZURE_STORAGE_CONTAINER || 'documentos-puc';
+    // Usar SAS URL em vez de connection string
+    this.blobSasUrl = process.env.AZURE_BLOB_SAS_URL || 'https://arquivosalunos.blob.core.windows.net/?sv=2024-11-04&ss=bfqt&srt=c&sp=rwdlacupiytfx&se=2026-06-28T21:21:06Z&st=2025-06-28T13:21:06Z&spr=https&sig=tgFdtvzm4MOJZIEPl4qpfST79zQpPrXbkaUtnELMWcQ%3D';
+    this.containerName = process.env.AZURE_STORAGE_CONTAINER || 'documentos-matricula';
     this.blobServiceClient = null;
     this.containerClient = null;
     
-    if (this.connectionString) {
-      this.initialize();
-    }
+    this.initialize();
   }
 
   initialize() {
     try {
-      this.blobServiceClient = BlobServiceClient.fromConnectionString(this.connectionString);
+      // Usar SAS URL para criar o cliente
+      this.blobServiceClient = new BlobServiceClient(this.blobSasUrl);
       this.containerClient = this.blobServiceClient.getContainerClient(this.containerName);
+      console.log('✅ Azure Blob Storage inicializado com SAS Token');
     } catch (error) {
-      console.error('Erro ao inicializar Azure Blob Storage:', error);
+      console.error('❌ Erro ao inicializar Azure Blob Storage:', error);
     }
   }
 
@@ -52,12 +53,14 @@ class BlobService {
       // Obter cliente do blob
       const blockBlobClient = this.containerClient.getBlockBlobClient(fileName);
 
-      // Upload do arquivo
-      await blockBlobClient.upload(file.buffer, file.size, {
+      // Upload do arquivo usando uploadData para buffer
+      await blockBlobClient.uploadData(file.buffer, {
         blobHTTPHeaders: {
           blobContentType: file.mimetype
         }
       });
+
+      console.log(`✅ Arquivo enviado com sucesso: ${fileName}`);
 
       // Retornar informações do arquivo
       return {
@@ -68,7 +71,7 @@ class BlobService {
       };
 
     } catch (error) {
-      console.error('Erro no upload para Azure Blob:', error);
+      console.error('❌ Erro no upload para Azure Blob:', error);
       throw new Error(`Falha no upload: ${error.message}`);
     }
   }
@@ -81,9 +84,10 @@ class BlobService {
     try {
       const blockBlobClient = this.containerClient.getBlockBlobClient(fileName);
       await blockBlobClient.delete();
+      console.log(`✅ Arquivo deletado com sucesso: ${fileName}`);
       return true;
     } catch (error) {
-      console.error('Erro ao deletar arquivo do Azure Blob:', error);
+      console.error('❌ Erro ao deletar arquivo do Azure Blob:', error);
       throw new Error(`Falha ao deletar arquivo: ${error.message}`);
     }
   }
@@ -97,8 +101,31 @@ class BlobService {
       const blockBlobClient = this.containerClient.getBlockBlobClient(fileName);
       return blockBlobClient.url;
     } catch (error) {
-      console.error('Erro ao obter URL do arquivo:', error);
+      console.error('❌ Erro ao obter URL do arquivo:', error);
       throw new Error(`Falha ao obter URL: ${error.message}`);
+    }
+  }
+
+  // Método para listar arquivos no container
+  async listDocuments(prefix = '') {
+    if (!this.containerClient) {
+      throw new Error('Azure Blob Storage não configurado');
+    }
+
+    try {
+      const blobs = [];
+      for await (const blob of this.containerClient.listBlobsFlat({ prefix })) {
+        blobs.push({
+          name: blob.name,
+          size: blob.properties.contentLength,
+          lastModified: blob.properties.lastModified,
+          url: `${this.containerClient.url}/${blob.name}`
+        });
+      }
+      return blobs;
+    } catch (error) {
+      console.error('❌ Erro ao listar arquivos:', error);
+      throw new Error(`Falha ao listar arquivos: ${error.message}`);
     }
   }
 

@@ -5,6 +5,21 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// Application Insights Configuration
+const appInsights = require("applicationinsights");
+
+appInsights.setup(process.env.APPLICATIONINSIGHTS_CONNECTION_STRING || "<SUA_CONNECTION_STRING_AQUI>")
+  .setAutoCollectRequests(true)
+  .setAutoCollectPerformance(true)
+  .setAutoCollectExceptions(true)
+  .setAutoCollectDependencies(true)
+  .start();
+
+const telemetryClient = appInsights.defaultClient;
+
+// Tornar telemetryClient disponível globalmente
+global.telemetryClient = telemetryClient;
+
 const app = express();
 
 // Middlewares de segurança
@@ -72,6 +87,19 @@ app.use('*', (req, res) => {
 // Middleware de tratamento de erros global
 app.use((error, req, res, next) => {
   console.error('Erro não tratado:', error);
+
+  // Rastrear exceção no Application Insights
+  if (telemetryClient) {
+    telemetryClient.trackException({ 
+      exception: error,
+      properties: {
+        url: req.originalUrl,
+        method: req.method,
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
+      }
+    });
+  }
 
   // Se for erro de validação do Prisma
   if (error.code === 'P2002') {
