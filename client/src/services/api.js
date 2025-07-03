@@ -1,4 +1,4 @@
-const API_URL = "https://minha-api-node.azurewebsites.net"; // sem / no final
+const API_URL = "https://matricula-api-h7ejhmdqfggkf3ev.canadacentral-01.azurewebsites.net"; // sem / no final
 
 export async function criarMatricula(dadosDaMatricula) {
   const response = await fetch(`${API_URL}/matricula`, {
