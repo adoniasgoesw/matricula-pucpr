@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = "https://minha-api-node.azurewebsites.net"; // sem / no final
 
 export async function criarMatricula(dadosDaMatricula) {
   const response = await fetch(`${API_URL}/matricula`, {
