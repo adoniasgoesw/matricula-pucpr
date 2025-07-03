@@ -1,21 +1,24 @@
-import sql from 'mssql';
-import dotenv from 'dotenv';
-
-dotenv.config();
+const sql = require('mssql');
 
 const config = {
-  server: process.env.SQL_SERVER,
-  database: process.env.SQL_DATABASE,
-  user: process.env.SQL_USER,
-  password: process.env.SQL_PASSWORD,
-  port: 1433,
+  server: process.env.SQL_SERVER || 'matriculasql.database.windows.net',
+  database: process.env.SQL_DATABASE || 'matricula-db',
   options: {
     encrypt: true,
-    trustServerCertificate: false,
   },
+  authentication: {
+    type: 'azure-active-directory-msi-app',
+  }
 };
 
-const pool = new sql.ConnectionPool(config);
-const poolConnect = pool.connect();
+async function conectar() {
+  try {
+    const pool = await sql.connect(config);
+    return pool;
+  } catch (err) {
+    console.error('Erro na conexão com o banco:', err);
+    throw err;
+  }
+}
 
-export { sql, poolConnect };
+module.exports = conectar;
