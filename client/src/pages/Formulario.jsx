@@ -445,29 +445,6 @@ const Formulario = () => {
     return `${year}00${randomNum}`;
   };
 
-  // Criar matrícula no backend
-  const criarMatriculaBackend = async () => {
-    setLoading(true);
-    const dadosMatricula = {
-      nome: formData.nome,
-      cpf: formData.cpf,
-      rg: formData.rg,
-      nascimento: formData.nascimento,
-      email: formData.email,
-      telefone: formData.telefone,
-      endereco: formData.endereco,
-      cidade: formData.cidade,
-      estado: formData.estado,
-      cursoId: selectedCourse.id,
-      campusId: selectedCampus,
-      valor: parseFloat(selectedCourse.tuition.replace('R$ ', '').replace(',', '.'))
-    };
-    const response = await criarMatricula(dadosMatricula);
-    setMatriculaId(response.id);
-    setLoading(false);
-    return response;
-  };
-
   // Upload de documentos
   const uploadDocumentos = async () => {
     if (!matriculaId) {
@@ -490,7 +467,24 @@ const Formulario = () => {
     try {
       // 1. Criar matrícula (se ainda não foi criada)
       if (!matriculaId) {
-        await criarMatriculaBackend();
+        // Montar objeto com os campos esperados pelo backend
+        const dadosMatricula = {
+          nomeCompleto: formData.nome,
+          cpf: formData.cpf.replace(/\D/g, ''),
+          rg: formData.rg,
+          dataNascimento: formData.nascimento,
+          email: formData.email,
+          telefone: formData.telefone,
+          endereco: formData.endereco,
+          cidade: formData.cidade,
+          estado: formData.estado,
+          campus: selectedCampus,
+          curso: selectedCourse?.name,
+          formaPagamento: paymentMethod,
+          valor: selectedCourse ? parseFloat(selectedCourse.tuition.replace('R$ ', '').replace('.', '').replace(',', '.')) : 0
+        };
+        const resultado = await criarMatricula(dadosMatricula);
+        setMatriculaId(resultado.matriculaId);
       }
       // 2. Upload de documentos
       await uploadDocumentos();
